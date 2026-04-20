@@ -12,6 +12,45 @@
 
 ---
 
+## 📖 About This Project
+
+### The Problem
+Banks run telemarketing campaigns to sell term deposits (savings products with fixed interest rates and lock-in periods). Campaign conversion rates are low — around 11% in historical Portuguese bank data — and every call costs money. Calling every customer is wasteful; the business needs to prioritize leads most likely to subscribe.
+
+### The Solution
+FinSight AI is a production-grade machine learning system that scores each customer by their likelihood of subscribing to a term deposit, enabling marketing teams to focus their calls on high-probability leads. The system was built end-to-end: from exploratory data analysis and statistical testing through feature engineering, model training, threshold tuning, REST API deployment, an interactive dashboard, and a RAG-powered strategy chatbot.
+
+### The Dataset
+Built on the UCI Bank Marketing Dataset — 41,188 real telemarketing contacts from a Portuguese retail bank between May 2008 and November 2010. Features include customer demographics (age, job, education, marital status), financial attributes (credit default, loans), campaign history (contacts, days since last contact, previous outcomes), and macro-economic indicators (Euribor rate, employment variation, consumer confidence index).
+
+### Methodology
+The project applies rigorous ML engineering practices at every step:
+
+1. **Exploratory & Statistical Analysis** — Hypothesis tests (chi-square, t-tests), multicollinearity diagnostics (VIF), logistic regression summary statistics via statsmodels, distribution and correlation visualizations via Plotly.
+2. **Feature Engineering** — Saved `ColumnTransformer` (StandardScaler for numerics, OrdinalEncoder for education's natural progression, OneHotEncoder for nominal categories) fit only on training data to prevent **training/serving skew**. Recoded `pdays=999` sentinel to `-1`. Dropped the `duration` feature because it's only known after the call (**data leakage**).
+3. **Stratified Splits** — Train (72%), validation (8%), test (20%), all **stratified splits** on the target to preserve the 11% positive class rate across splits.
+4. **Class Imbalance Handling** — SMOTE applied only to the training set (never before splitting — that would leak test-set neighborhoods into training).
+5. **Multi-Model Training** — Four models trained with hyperparameters config-driven from YAML: Logistic Regression, Random Forest, XGBoost, and LightGBM. XGBoost and LightGBM use early stopping on the validation set.
+6. **Threshold Tuning** — Decision **threshold tuning** per model on the validation set to maximize F1 (optimal range: 0.23 to 0.84). The test set is used exactly once for final reporting.
+7. **Model Selection** — Best model selected by validation **PR-AUC** (appropriate for imbalanced classes, not ROC-AUC).
+8. **Experiment Tracking** — All runs logged to MLflow with parameters, metrics, and model artifacts for reproducibility.
+9. **Explainability** — SHAP values computed in the evaluation notebook to show per-feature contribution to predictions.
+
+### Deliverables
+- **REST API** (FastAPI): `/predict`, `/batch-predict`, `/model-info`, `/health` endpoints with Pydantic validation.
+- **Interactive Dashboard** (Streamlit): Lead Scorer form with human-readable labels + RAG-powered Strategy Copilot chatbot.
+- **RAG Knowledge Base** (LlamaIndex + OpenAI): Indexed financial documents covering campaign strategy, GDPR/MiFID II compliance, best practices, and dataset insights. Returns context-grounded answers with source attribution.
+- **Docker Compose Orchestration**: One-command deployment of API + Streamlit + MLflow as separate containers.
+- **Testing & CI/CD**: 27 pytest tests covering data pipeline, models, and API. GitHub Actions runs artifact-free tests on every push.
+
+### Business Value
+- **Cost savings**: Prioritizing high-probability leads reduces call center expenses (each call costs ~€3 in agent time).
+- **Revenue impact**: Better conversion rates on a smaller targeted outreach — the model achieves a 4.3× lift over random targeting.
+- **Regulatory alignment**: The RAG chatbot surfaces compliance considerations (GDPR consent, MiFID II disclosures, Banco de Portugal contact rules) alongside predictions.
+- **Explainability**: SHAP values and documented feature engineering decisions support fair-lending reviews and customer explanation requirements.
+
+---
+
 ## 🎯 Results — Model Comparison
 
 All models trained on the UCI Bank Marketing dataset (41,188 rows, 11% positive class). Evaluation on a held-out test set (8,238 rows). Decision threshold tuned on a separate validation set to maximise F1 — **not** the test set.
