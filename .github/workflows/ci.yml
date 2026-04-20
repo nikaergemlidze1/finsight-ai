@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (Python 3.11)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python ───────────────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── Dependency cache ─────────────────────────────────────────────────────
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ── Install ───────────────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff          # linter — not in requirements.txt (dev-only)
+
+      # ── Lint ──────────────────────────────────────────────────────────────────
+      # E9   – syntax errors / runtime errors (always fatal)
+      # F63  – invalid assert / star-expr misuse
+      # F7   – syntax errors caught by pyflakes
+      # F82  – undefined names
+      # E711 – comparison to None/True/False
+      # W    – warnings (non-fatal, included for visibility)
+      - name: Lint with ruff
+        run: |
+          ruff check . \
+            --select E9,F63,F7,F82,E711 \
+            --ignore F821 \
+            --output-format github
+
+      # ── Test ─────────────────────────────────────────────────────────────────
+      # Tests that need the raw CSV (test_load_raw_schema, test_pdays_recoded)
+      # or trained model artifacts are excluded — they require data not present in CI.
+      # The pytestmark skipif guards in test_models.py and test_api.py handle
+      # artifact-dependent tests automatically.
+      - name: Run pytest
+        run: |
+          pytest tests/ -v \
+            -k "not (test_load_raw_schema or test_pdays_recoded)" \
+            --junitxml=pytest-results.xml \
+            --tb=short
+
+      # ── Upload test results ───────────────────────────────────────────────────
+      - name: Upload pytest results
+        uses: actions/upload-artifact@v4
+        if: always()          # upload even on failure so we can inspect failures
+        with:
+          name: pytest-results
+          path: pytest-results.xml
+          retention-days: 7

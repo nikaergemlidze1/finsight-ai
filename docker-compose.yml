@@ -1,0 +1,88 @@
+version: "3.9"
+
+# Shared model artifacts volume — mount read-only into both services.
+# Run the training pipeline locally first:
+#   python -m src.data_processing && python -m src.train
+# then `docker compose up`.
+
+networks:
+  finsight:
+    driver: bridge
+
+services:
+
+  # ── FastAPI prediction service ───────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: finsight-api:latest
+    container_name: finsight_api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Read-only: trained artifacts produced outside the container
+      - ./models:/app/models:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
+    networks:
+      - finsight
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Streamlit dashboard ───────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime        # reuses the same image layer cache
+    image: finsight-api:latest
+    container_name: finsight_streamlit
+    command: >
+      streamlit run app/streamlit_app.py
+        --server.port 8501
+        --server.address 0.0.0.0
+        --server.headless true
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./models:/app/models:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - finsight
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── MLflow tracking server (optional, comment out if not needed) ─────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.3
+    container_name: finsight_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri /mlflow/mlruns
+        --default-artifact-root /mlflow/mlruns
+    networks:
+      - finsight
+    restart: unless-stopped
