@@ -310,7 +310,6 @@ Full feature dictionary: [data/README.md](data/README.md)
 ## 📬 Contact
 
 **Nika Ergemlidze** — Data Scientist/Analyst/Data Engineer & AI/ML Engineer
-- 📧 nika.ergemlidze@icloud.com
 - 🐙 [github.com/nikaergemlidze1](https://github.com/nikaergemlidze1)
 - 💼 [linkedin.com/in/nika-ergemlidze](https://linkedin.com/in/nika-ergemlidze)
 
