@@ -20,11 +20,18 @@ _Y_PROB = np.clip(_RNG.uniform(0, 1, _N), 0, 1)
 _MODELS_DIR = Path("models")
 _CONFIG = load_config()
 
+def _is_real_artifact(path: Path) -> bool:
+    """Return False for Git LFS pointer files (~130 bytes)."""
+    try:
+        return path.exists() and path.stat().st_size > 1024
+    except Exception:
+        return False
+
 # Check for all required model artifacts (These SHOULD be in Git)
 _MODEL_READY = (
-    (_MODELS_DIR / "best_model.pkl").exists()
+    _is_real_artifact(_MODELS_DIR / "best_model.pkl")
     and (_MODELS_DIR / "best_model_metadata.json").exists()
-    and (_MODELS_DIR / "preprocessor.pkl").exists()
+    and _is_real_artifact(_MODELS_DIR / "preprocessor.pkl")
     and (_MODELS_DIR / "feature_names.json").exists()
 )
 

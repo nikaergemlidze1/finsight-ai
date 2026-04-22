@@ -33,6 +33,8 @@ def _load_artifacts(app: FastAPI) -> None:
     except Exception as e:
         print(f"[startup] Error loading ML artifacts: {e}")
         app.state.model = None
+        app.state.preprocessor = None
+        app.state.metadata = {}
 
 def _init_rag_engine(app: FastAPI) -> None:
     """

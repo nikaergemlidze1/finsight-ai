@@ -17,10 +17,18 @@ from api.main import app
 
 # ── Skip guard ────────────────────────────────────────────────────────────────
 
-_MODELS_DIR  = Path("models")
+_MODELS_DIR = Path("models")
+
+def _is_real_artifact(path: Path) -> bool:
+    """Return False for Git LFS pointer files (~130 bytes)."""
+    try:
+        return path.exists() and path.stat().st_size > 1024
+    except Exception:
+        return False
+
 _MODEL_READY = (
-    (_MODELS_DIR / "best_model.pkl").exists()
-    and (_MODELS_DIR / "preprocessor.pkl").exists()
+    _is_real_artifact(_MODELS_DIR / "best_model.pkl")
+    and _is_real_artifact(_MODELS_DIR / "preprocessor.pkl")
     and (_MODELS_DIR / "best_model_metadata.json").exists()
 )
 _SKIP_REASON = (
