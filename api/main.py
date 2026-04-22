@@ -1,19 +1,14 @@
 from __future__ import annotations
-
 import json
 import joblib
 import yaml
 from contextlib import asynccontextmanager
 from pathlib import Path
-
 from fastapi import FastAPI
-
 from api.routes import router
-
 
 def _load_artifacts(app: FastAPI) -> None:
     models_dir = Path("models")
-
     with open("config/config.yaml") as f:
         app.state.cfg = yaml.safe_load(f)
 
@@ -21,32 +16,31 @@ def _load_artifacts(app: FastAPI) -> None:
     model_path = models_dir / "best_model.pkl"
     prep_path  = models_dir / "preprocessor.pkl"
 
-    missing = [p for p in (meta_path, model_path, prep_path) if not p.exists()]
-    if missing:
-        app.state.model        = None
+    if not all(p.exists() for p in (meta_path, model_path, prep_path)):
+        app.state.model = None
         app.state.preprocessor = None
-        app.state.metadata     = {}
-        print(f"[startup] WARNING — artifacts not found: {[str(p) for p in missing]}")
-        print("[startup] Run `python -m src.data_processing` then `python -m src.train` first.")
+        app.state.metadata = {}
+        print("[startup] WARNING: ML artifacts not found.")
         return
 
-    app.state.metadata     = json.loads(meta_path.read_text())
-    app.state.model        = joblib.load(model_path)
+    app.state.metadata = json.loads(meta_path.read_text())
+    app.state.model = joblib.load(model_path)
     app.state.preprocessor = joblib.load(prep_path)
-    print(f"[startup] model={app.state.metadata['model_name']}  "
-          f"threshold={app.state.metadata['tuned_threshold']}  "
-          f"val_pr_auc={app.state.metadata['val_pr_auc']}")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 1. Load ML Models
     _load_artifacts(app)
-    yield  # app runs here
-
+    
+    # 2. Initialize RAG (Optional: Uncomment if your query_engine is ready)
+    # from src.rag.query_engine import get_query_engine
+    # app.state.query_engine = get_query_engine()
+    
+    yield 
 
 app = FastAPI(
     title="FinSight AI",
-    description="Bank term-deposit subscription predictor.",
+    description="Financial Intelligence & Lead Scoring API",
     version="1.0.0",
     lifespan=lifespan,
 )
