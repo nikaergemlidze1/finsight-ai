@@ -1,0 +1,80 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# ── Virtual Environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Data ───────────────────────────────────────────────────────────────────────
+data/processed/
+!data/processed/.gitkeep
+!data/raw/*.csv
+!data/raw/*.zip
+!data/raw/bank-additional-names.txt
+
+# ── Models & Artifacts ────────────────────────────────────────────────────────
+# Ignore the models folder by default, but allow specific deployment artifacts
+models/*
+!models/.gitkeep
+!models/best_model.pkl
+!models/preprocessor.pkl
+!models/best_model_metadata.json
+!models/feature_names.json
+!models/rag_index/
+
+# ── MLflow ────────────────────────────────────────────────────────────────────
+mlruns/
+mlartifacts/
+
+# ── Reports & Figures ─────────────────────────────────────────────────────────
+reports/figures/
+!reports/figures/.gitkeep
+
+# ── Secrets & Credentials ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.docker/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Testing & Coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+reports/screenshots/

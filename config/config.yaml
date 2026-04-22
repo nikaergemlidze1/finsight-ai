@@ -1,0 +1,173 @@
+project:
+  name: "FinSight AI"
+  version: "1.0.0"
+  random_seed: 42
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+paths:
+  raw_data: "data/raw/bank-additional-full.csv"
+  processed_dir: "data/processed"
+  models_dir: "models"
+  reports_dir: "reports/figures"
+  docs_dir: "docs/financial_reports"
+
+# ── Data ───────────────────────────────────────────────────────────────────────
+data:
+  sep: ";"
+  target_col: "y"
+  # Columns to drop before modelling (data-leaking or low-value)
+  drop_cols:
+    - "duration"          # leaks post-call outcome; unsuitable for real predictions
+  test_size: 0.20
+  val_size: 0.10          # fraction of train set used for validation
+  stratify: true
+
+  # Ordinal encoding order for 'education'
+  education_order:
+    - "illiterate"
+    - "basic.4y"
+    - "basic.6y"
+    - "basic.9y"
+    - "high.school"
+    - "professional.course"
+    - "university.degree"
+    - "unknown"
+
+  # 999 in pdays means "not previously contacted" — recode to -1 for models
+  pdays_not_contacted: 999
+  pdays_fill_value: -1
+
+# ── Feature Engineering ────────────────────────────────────────────────────────
+features:
+  numerical:
+    - age
+    - campaign
+    - pdays
+    - previous
+    - emp.var.rate
+    - cons.price.idx
+    - cons.conf.idx
+    - euribor3m
+    - nr.employed
+
+  categorical:
+    - job
+    - marital
+    - education
+    - default
+    - housing
+    - loan
+    - contact
+    - month
+    - day_of_week
+    - poutcome
+
+  binary_target_map:
+    "yes": 1
+    "no": 0
+
+# ── Preprocessing ──────────────────────────────────────────────────────────────
+preprocessing:
+  scaler: "standard"        # options: standard | robust | minmax
+  handle_unknown_categories: "ignore"
+  smote:
+    enabled: true
+    sampling_strategy: "auto"
+    k_neighbors: 5
+
+# ── Models ─────────────────────────────────────────────────────────────────────
+models:
+  logistic_regression:
+    C: 1.0
+    max_iter: 1000
+    class_weight: "balanced"
+    solver: "lbfgs"
+
+  random_forest:
+    n_estimators: 300
+    max_depth: 15
+    min_samples_split: 5
+    min_samples_leaf: 2
+    class_weight: "balanced"
+    n_jobs: -1
+
+  xgboost:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.8
+    colsample_bytree: 0.8
+    scale_pos_weight: 8    # ~8:1 class imbalance in raw data
+    eval_metric: "auc"
+    early_stopping_rounds: 50
+
+  lightgbm:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 6
+    num_leaves: 63
+    subsample: 0.8
+    colsample_bytree: 0.8
+    class_weight: "balanced"
+    n_jobs: -1
+    early_stopping_rounds: 50
+
+  # Threshold tuning (applied post-training on validation set)
+  threshold_search:
+    enabled: true
+    metric: "f1"            # optimise decision threshold by this metric
+    grid_start: 0.1
+    grid_stop: 0.9
+    grid_step: 0.01
+
+# ── Hyperparameter Tuning ──────────────────────────────────────────────────────
+tuning:
+  method: "optuna"          # options: optuna | grid | random
+  n_trials: 50
+  cv_folds: 5
+  scoring: "roc_auc"
+  n_jobs: -1
+  timeout_seconds: 3600
+
+# ── Evaluation ─────────────────────────────────────────────────────────────────
+evaluation:
+  primary_metric: "roc_auc"
+  additional_metrics:
+    - precision
+    - recall
+    - f1
+    - average_precision    # PR-AUC, better for imbalanced data
+
+# ── MLflow ─────────────────────────────────────────────────────────────────────
+mlflow:
+  tracking_uri: "mlruns"
+  experiment_name: "finsight-bank-marketing"
+  run_tags:
+    project: "FinSight AI"
+    dataset: "UCI Bank Marketing"
+    author: "nika.ergemlidze@icloud.com"
+  log_artifacts: true
+  registered_model_name: "bank_subscription_predictor"
+
+# ── FastAPI ────────────────────────────────────────────────────────────────────
+api:
+  host: "0.0.0.0"
+  port: 8000
+  model_path: "models/best_model.pkl"
+  preprocessor_path: "models/preprocessor.pkl"
+
+# ── Streamlit ──────────────────────────────────────────────────────────────────
+streamlit:
+  port: 8501
+  page_title: "FinSight AI — Bank Marketing Predictor"
+  theme: "dark"
+
+# ── RAG ────────────────────────────────────────────────────────────────────────
+rag:
+  llm_model: "gpt-4o-mini"
+  embed_model: "BAAI/bge-small-en-v1.5"
+  chunk_size: 512
+  chunk_overlap: 64
+  similarity_top_k: 5
+  index_persist_dir: "models/rag_index"
+  docs_dir: "docs/financial_reports"
