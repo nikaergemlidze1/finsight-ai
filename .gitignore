@@ -22,11 +22,11 @@ ENV/
 *.ipynb_checkpoints
 
 # ── Data ───────────────────────────────────────────────────────────────────────
-data/raw/*.csv
-data/raw/*.zip
 data/processed/
 !data/processed/.gitkeep
-!data/raw/bank-additional-names.txt   # keep the schema reference
+!data/raw/*.csv
+!data/raw/*.zip
+!data/raw/bank-additional-names.txt
 
 # ── Models & Artifacts ────────────────────────────────────────────────────────
 # Ignore the models folder by default, but allow specific deployment artifacts
@@ -36,6 +36,7 @@ models/*
 !models/preprocessor.pkl
 !models/best_model_metadata.json
 !models/feature_names.json
+!models/rag_index/
 
 # ── MLflow ────────────────────────────────────────────────────────────────────
 mlruns/
