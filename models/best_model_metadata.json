@@ -1,0 +1,7 @@
+{
+  "model_name": "LightGBM",
+  "val_pr_auc": 0.4736,
+  "test_pr_auc": 0.4763,
+  "tuned_threshold": 0.22999999999999995,
+  "timestamp": "2026-04-19T21:57:42.265685+00:00"
+}

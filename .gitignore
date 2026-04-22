@@ -29,8 +29,12 @@ data/processed/
 !data/raw/bank-additional-names.txt   # keep the schema reference
 
 # ── Models & Artifacts ────────────────────────────────────────────────────────
-models/
+# Ignore the models folder by default, but allow specific deployment artifacts
+models/*
 !models/.gitkeep
+!models/best_model.pkl
+!models/preprocessor.pkl
+!models/best_model_metadata.json
 
 # ── MLflow ────────────────────────────────────────────────────────────────────
 mlruns/
