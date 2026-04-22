@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from api.schemas import CustomerInput
-from api import database as db # Connects to our new database file
+from api import database as db 
 
 router = APIRouter()
 
@@ -23,32 +23,65 @@ def _to_array(customers: list[CustomerInput], cfg: dict, prep: Any) -> np.ndarra
             row["pdays"] = cfg["data"]["pdays_fill_value"]
     return prep.transform(pd.DataFrame(rows))
 
+def _make_prediction_dict(prob: float, threshold: float) -> dict:
+    """Helper to maintain consistent output format for tests."""
+    subscribed = bool(prob >= threshold)
+    return {
+        "probability_of_subscription": round(prob, 4),
+        "prediction_class": int(subscribed),
+        "recommendation": "Call — high-probability lead" if subscribed else "Do not call — low probability",
+        "threshold_used": threshold,
+    }
+
 # --- Endpoints ---
 
 @router.get("/", summary="Health check")
 async def health_check(request: Request):
-    return {"status": "active", "db_connected": True}
+    """Returns status and model metadata (Required by tests)."""
+    meta = request.app.state.metadata
+    return {
+        "status": "active",
+        "model_loaded": request.app.state.model is not None,
+        "model_name":   meta.get("model_name"),
+        "val_pr_auc":   meta.get("val_pr_auc"),
+        "tuned_threshold": meta.get("tuned_threshold"),
+        "trained_at":   meta.get("timestamp"),
+        "db_connected": True # Our new addition
+    }
 
-@router.post("/predict", summary="Predict & Log Lead")
+@router.get("/model-info", summary="Detailed model metadata")
+async def model_info(request: Request):
+    """Restored for test compliance."""
+    return request.app.state.metadata
+
+@router.post("/predict", summary="Single-customer subscription prediction")
 async def predict(customer: CustomerInput, request: Request):
     model, prep, meta, cfg = _ready(request)
     threshold = meta["tuned_threshold"]
 
-    # ML Inference
     encoded = _to_array([customer], cfg, prep)
     prob = float(model.predict_proba(encoded)[0][1])
-    subscribed = bool(prob >= threshold)
     
-    result = {
-        "probability": round(prob, 4),
-        "prediction": int(subscribed),
-        "recommendation": "High Priority Lead" if subscribed else "Low Priority"
-    }
+    result = _make_prediction_dict(prob, threshold)
 
-    # ASYNC LOGGING: Save the event to MongoDB Atlas
+    # ASYNC LOGGING: Save to MongoDB
     await db.log_prediction(customer.model_dump(), result)
-    
     return result
+
+@router.post("/batch-predict", summary="Batch subscription predictions")
+async def batch_predict(customers: list[CustomerInput], request: Request):
+    """Restored for test compliance."""
+    if not customers:
+        raise HTTPException(status_code=400, detail="Customer list must not be empty.")
+
+    model, prep, meta, cfg = _ready(request)
+    threshold = meta["tuned_threshold"]
+
+    encoded = _to_array(customers, cfg, prep)
+    probs   = model.predict_proba(encoded)[:, 1]
+    
+    results = [_make_prediction_dict(float(p), threshold) for p in probs]
+    return results
 
 @router.post("/research", summary="Financial Strategy RAG")
 async def research(payload: dict, request: Request):
@@ -56,10 +89,6 @@ async def research(payload: dict, request: Request):
     if not query:
         raise HTTPException(status_code=400, detail="Query required")
 
-    # This is a placeholder for your RAG logic
     answer = f"Financial analysis for: {query}. (RAG Engine Active)"
-    
-    # LOGGING: Save the research query to MongoDB
     await db.log_research(query, answer)
-    
     return {"query": query, "answer": answer}
