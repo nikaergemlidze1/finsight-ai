@@ -29,14 +29,11 @@ def _load_artifacts(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Load ML Models
     _load_artifacts(app)
+    from src.rag.query_engine import get_query_engine
+    app.state.query_engine = get_query_engine()
     
-    # 2. Initialize RAG (Optional: Uncomment if your query_engine is ready)
-    # from src.rag.query_engine import get_query_engine
-    # app.state.query_engine = get_query_engine()
-    
-    yield 
+    yield
 
 app = FastAPI(
     title="FinSight AI",

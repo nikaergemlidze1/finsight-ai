@@ -89,6 +89,12 @@ async def research(payload: dict, request: Request):
     if not query:
         raise HTTPException(status_code=400, detail="Query required")
 
-    answer = f"Financial analysis for: {query}. (RAG Engine Active)"
+    # Connect to the actual RAG engine in your app state
+    if hasattr(request.app.state, "query_engine") and request.app.state.query_engine:
+        response = request.app.state.query_engine.query(query)
+        answer = str(response)
+    else:
+        answer = f"RAG Engine is not initialized. (Response for: {query})"
+    
     await db.log_research(query, answer)
     return {"query": query, "answer": answer}

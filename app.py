@@ -51,9 +51,13 @@ with tab1:
         payload = {
             "age": age, "job": job, "marital": marital, "education": education,
             "default": default, "housing": housing, "loan": loan,
-            "contact": contact, "month": month, "emp_var_rate": emp_var_rate,
-            "cons_price_idx": cons_price_idx, "euribor3m": euribor3m, "nr_employed": nr_employed,
-            "pdays": 999, "previous": 0, "poutcome": "nonexistent", "campaign": 1, "day_of_week": "mon" # Added required defaults
+            "contact": contact, "month": month, "day_of_week": "mon",
+            "campaign": 1, "pdays": 999, "previous": 0, "poutcome": "nonexistent",
+            "emp.var.rate": emp_var_rate,
+            "cons.price.idx": cons_price_idx,
+            "cons.conf.idx": -46.2,
+            "euribor3m": euribor3m,
+            "nr.employed": nr_employed
         }
         with st.spinner("Analyzing Lead..."):
             try:
