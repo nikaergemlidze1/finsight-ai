@@ -29,9 +29,20 @@ def _load_artifacts(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 1. Load ML Models
     _load_artifacts(app)
-    from src.rag.query_engine import get_query_engine
-    app.state.query_engine = get_query_engine()
+    
+    # 2. Initialize RAG with graceful failure for environments without the index
+    try:
+        from src.rag.query_engine import get_query_engine
+        app.state.query_engine = get_query_engine()
+        print("[startup] RAG engine initialized successfully.")
+    except (ImportError, FileNotFoundError) as e:
+        app.state.query_engine = None
+        print(f"[startup] WARNING: RAG engine skipped: {e}")
+    except Exception as e:
+        app.state.query_engine = None
+        print(f"[startup] Unexpected error during RAG initialization: {e}")
     
     yield
 
