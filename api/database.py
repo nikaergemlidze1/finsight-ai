@@ -2,37 +2,31 @@ import os
 from datetime import datetime, timezone
 import motor.motor_asyncio
 
-# The same fail-safe logic we perfected earlier
 MONGO_URL = os.getenv("MONGO_URL") or os.getenv("MONGODB_URI") or "mongodb://localhost:27017"
 DB_NAME = "finsight_ai"
 
 _client: motor.motor_asyncio.AsyncIOMotorClient | None = None
 
-def get_client():
+def get_db():
     global _client
     if _client is None:
-        _client = motor.motor_asyncio.AsyncIOMotorClient(
-            MONGO_URL,
-            serverSelectionTimeoutMS=5000
-        )
-    return _client
+        _client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
+    return _client[DB_NAME]
 
-def get_db():
-    return get_client()[DB_NAME]
+async def log_prediction(input_data: dict, output_data: dict): # MUST BE NAMED EXACTLY THIS
+    try:
+        col = get_db()["prediction_logs"]
+        await col.insert_one({
+            "input": input_data,
+            "output": output_data,
+            "timestamp": datetime.now(timezone.utc)
+        })
+    except Exception as e:
+        print(f"DB Log Fail: {e}")
 
-# Collections for Financial Analytics
-def research_logs_col():
-    return get_db()["research_logs"]
-
-def lead_scoring_logs_col():
-    return get_db()["lead_scoring_logs"]
-
-async def log_financial_query(session_id: str, query: str, answer: str, category: str):
-    col = research_logs_col()
-    await col.insert_one({
-        "session_id": session_id,
-        "query": query,
-        "answer": answer,
-        "category": category, # e.g., "Retirement", "Investment"
-        "timestamp": datetime.now(timezone.utc)
-    })
+async def log_research(query: str, answer: str):
+    try:
+        col = get_db()["research_logs"]
+        await col.insert_one({"query": query, "answer": answer, "timestamp": datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"DB Log Fail: {e}")
