@@ -34,7 +34,7 @@ with st.sidebar:
     
     try:
         # Ping the /health endpoint we verified in your logs
-        health_resp = requests.get(f"{BACKEND_URL}/health", timeout=5)
+        health_resp = requests.get(f"{BACKEND_URL}/", timeout=5)
         health_data = health_resp.json()
         
         if health_data.get("status") == "active":
@@ -142,8 +142,8 @@ with tab2:
             with st.spinner("Querying FinSight RAG Engine..."):
                 try:
                     # POST to the FastAPI chat endpoint
-                    resp = requests.post(f"{BACKEND_URL}/chat", json={"query": prompt}, timeout=30)
-                    full_response = resp.json().get("response", "No response from AI.")
+                    resp = requests.post(f"{BACKEND_URL}/research", json={"query": prompt}, timeout=30)
+                    full_response = resp.json().get("answer", "No response from AI.")
                     st.markdown(full_response)
                     st.session_state.messages.append({"role": "assistant", "content": full_response})
                 except Exception:
