@@ -77,3 +77,4 @@ desktop.ini
 .coverage
 coverage.xml
 htmlcov/
+reports/screenshots/
