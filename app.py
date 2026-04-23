@@ -246,7 +246,7 @@ with tab2:
         st.info("👋 Start the conversation by typing your first question below.")
     else:
         # Adaptive-height container — grows with content up to a sensible cap
-        history_height = min(500, max(250, len(st.session_state.messages) * 85))
+        history_height = min(400, max(200, len(st.session_state.messages) * 85))
         history_container = st.container(height=history_height)
         with history_container:
             for msg in st.session_state.messages:
