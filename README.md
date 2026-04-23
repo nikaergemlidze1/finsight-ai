@@ -337,15 +337,6 @@ Full feature dictionary: [data/README.md](data/README.md)
 
 ---
 
-## 📸 Screenshots
-
-
-| Lead Scorer (Tab 1) | Strategy Copilot (Tab 2) |
-|---|---|
-| ![Lead Scorer](reports/screenshots/streamlit_tab1.png) | ![Strategy Copilot](reports/screenshots/streamlit_tab2.png) |
-
----
-
 ## 📬 Contact
 
 **Nika Ergemlidze** — Data Scientist/Analyst/Data Engineer & AI/ML Engineer
