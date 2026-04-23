@@ -5,7 +5,47 @@ from urllib3.util.retry import Retry
 
 # --- Page config must be first Streamlit call ---
 st.set_page_config(page_title="FinSight AI", layout="wide", page_icon="🏦")
+# --- Hide cosmetic "Bad message format" popup (Streamlit upstream bug #9767) ---
+st.markdown(
+    """
+    <style>
+    div[data-testid="stStatusWidget"] div[role="alert"]:has(> div:first-child:contains("Bad message format")) {
+        display: none !important;
+    }
+    div[role="dialog"]:has(*:contains("SessionInfo")) {
+        display: none !important;
+    }
+    </style>
+    <script>
+    (function() {
+        const observer = new MutationObserver(() => {
+            document.querySelectorAll('div').forEach(el => {
+                if (el.textContent && el.textContent.includes('Tried to use SessionInfo before it was initialized')) {
+                    let parent = el;
+                    for (let i = 0; i < 6 && parent; i++) {
+                        if (parent.getAttribute('role') === 'dialog' ||
+                            parent.getAttribute('data-testid')?.includes('Dialog') ||
+                            parent.getAttribute('data-testid')?.includes('Toast')) {
+                            parent.style.display = 'none';
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
+                }
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
 
+# --- Backend URL: safe fallback, no st.stop() ---
+BACKEND_URL = st.secrets.get(
+    "BACKEND_URL",
+    "https://nikollass-finsight-ai-backend.hf.space",
+)
 # --- Backend URL: safe fallback, no st.stop() ---
 BACKEND_URL = st.secrets.get(
     "BACKEND_URL",
