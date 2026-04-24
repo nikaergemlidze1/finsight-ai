@@ -59,7 +59,7 @@ def _warm_backend() -> bool:
 BACKEND_WARM = _warm_backend()
 
 def _relative_time(iso_or_dt) -> str:
-    """Turn a timestamp into 'just now' / '2m ago' / '1h ago' / 'yesterday' etc."""
+    """Turn a timestamp into 'just now' / '2m ago' / '1h ago' / etc."""
     if isinstance(iso_or_dt, str):
         try:
             dt = datetime.fromisoformat(iso_or_dt.replace("Z", "+00:00"))
@@ -155,21 +155,6 @@ st.markdown(
         font-style: italic;
     }
 
-    /* Copy button on assistant messages */
-    .copy-btn {
-        background: rgba(251, 191, 36, 0.15);
-        border: 1px solid rgba(251, 191, 36, 0.3);
-        border-radius: 6px;
-        color: #FBBF24;
-        font-size: 0.75rem;
-        padding: 0.2rem 0.6rem;
-        cursor: pointer;
-        margin-top: 0.4rem;
-        transition: all 0.2s;
-    }
-    .copy-btn:hover { background: rgba(251, 191, 36, 0.25); }
-    .copy-btn.copied { background: rgba(16, 185, 129, 0.25); border-color: #10B981; color: #10B981; }
-
     /* Suggested-question pill buttons */
     .stButton > button[kind="secondary"] {
         border-radius: 999px;
@@ -243,7 +228,7 @@ st.caption(
     "*Backend on HF Spaces free tier — first request may take ~20s if the Space is waking up.*"
 )
 
-tab1, tab2, tab3 = st.tabs(["📊 Lead Scoring", "🤖 Strategy Copilot", "📈 Analytics"])
+tab1, tab2, tab3 = st.tabs(["📊 Lead Scoring", "🕴 Strategy Copilot", "📈 Analytics"])
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 1: LEAD SCORING
@@ -316,7 +301,7 @@ with tab1:
                 else:
                     tier, color, icon = "Low Priority", "#EF4444", "❄️"
 
-                # Two-column metric layout — gives each metric more room
+                # Two-column metric layout — gives each metric room
                 mcol1, mcol2 = st.columns(2)
                 with mcol1:
                     st.metric("Subscription Probability", f"{prob:.1f}%")
@@ -382,40 +367,26 @@ def _send_to_copilot(prompt: str):
         })
 
 def _render_message(msg, idx):
-    """Render a chat message with timestamp and (for assistant) copy button."""
-    avatar = "🧑‍💼" if msg["role"] == "user" else "💡"
+    """Render a chat message with timestamp; assistant messages get a copy button via popover."""
+    avatar = "🧑‍💼" if msg["role"] == "user" else "🎯"
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
+
         ts_text = _relative_time(msg.get("timestamp", "")) if msg.get("timestamp") else ""
+        st.markdown(
+            f"<span class='chat-timestamp'>🕐 {ts_text}</span>",
+            unsafe_allow_html=True,
+        )
+
         if msg["role"] == "assistant":
-            # Inline copy button + timestamp
-            safe_content = (
-                msg["content"]
-                .replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$")
-            )
-            st.markdown(
-                f"""
-                <div style='display:flex;justify-content:space-between;align-items:center;margin-top:0.3rem;'>
-                    <span class='chat-timestamp'>🕐 {ts_text}</span>
-                    <button class='copy-btn' onclick='
-                        navigator.clipboard.writeText(`{safe_content}`);
-                        this.textContent = "✓ Copied";
-                        this.classList.add("copied");
-                        setTimeout(() => {{ this.textContent = "📋 Copy"; this.classList.remove("copied"); }}, 1500);
-                    '>📋 Copy</button>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(f"<span class='chat-timestamp'>🕐 {ts_text}</span>", unsafe_allow_html=True)
+            with st.popover("📋 Copy response", use_container_width=False):
+                st.code(msg["content"], language=None, wrap_lines=True)
+                st.caption("Click the copy icon in the top-right of the box above.")
 
 with tab2:
     hcol1, hcol2 = st.columns([5, 1])
     with hcol1:
-        st.header("🤖 Strategy Copilot", anchor=False)
+        st.header("🕴 Strategy Copilot", anchor=False)
     with hcol2:
         if st.session_state.messages:
             if st.button("🗑️ Clear Chat", use_container_width=True):
@@ -434,7 +405,7 @@ with tab2:
             for i, msg in enumerate(st.session_state.messages):
                 _render_message(msg, i)
 
-    # Suggested questions — ALWAYS visible, collapsed into expander once chat starts
+    # Suggested questions — visible on empty state, collapsible once chat starts
     if not st.session_state.messages:
         st.markdown("**💭 Try these:**")
         sugg_cols = st.columns(2)
