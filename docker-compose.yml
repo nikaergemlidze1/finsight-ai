@@ -4,6 +4,8 @@ version: "3.9"
 # Run the training pipeline locally first:
 #   python -m src.data_processing && python -m src.train
 # then `docker compose up`.
+#
+# Secrets: copy .env.example → .env and fill in OPENAI_API_KEY and MONGO_URL.
 
 networks:
   finsight:
@@ -24,9 +26,12 @@ services:
     volumes:
       # Read-only: trained artifacts produced outside the container
       - ./models:/app/models:ro
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
       - TOKENIZERS_PARALLELISM=false
+      - PORT=8000
     networks:
       - finsight
     healthcheck:
@@ -42,7 +47,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime        # reuses the same image layer cache
+      target: runtime
     image: finsight-api:latest
     container_name: finsight_streamlit
     command: >
@@ -54,8 +59,11 @@ services:
       - "8501:8501"
     volumes:
       - ./models:/app/models:ro
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
     networks:
       - finsight
     depends_on:
