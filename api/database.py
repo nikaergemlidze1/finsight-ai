@@ -19,19 +19,27 @@ def get_db():
 
 async def log_prediction(input_data: dict, output_data: dict): # MUST BE NAMED EXACTLY THIS
     try:
+        now = datetime.now(timezone.utc)
         col = get_db()["prediction_logs"]
         await col.insert_one({
             "input": input_data,
             "output": output_data,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": now,
+            "logged_at": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
         })
     except Exception as e:
         print(f"DB Log Fail: {e}")
 
 async def log_research(query: str, answer: str):
     try:
+        now = datetime.now(timezone.utc)
         col = get_db()["research_logs"]
-        await col.insert_one({"query": query, "answer": answer, "timestamp": datetime.now(timezone.utc)})
+        await col.insert_one({
+            "query": query,
+            "answer": answer,
+            "timestamp": now,
+            "logged_at": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        })
     except Exception as e:
         print(f"DB Log Fail: {e}")
 
