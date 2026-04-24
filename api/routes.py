@@ -1,10 +1,11 @@
 from __future__ import annotations
+import asyncio
 from typing import Any
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from api.schemas import CustomerInput
-from api import database as db 
+from api import database as db
 
 router = APIRouter()
 
@@ -64,8 +65,7 @@ async def predict(customer: CustomerInput, request: Request):
     
     result = _make_prediction_dict(prob, threshold)
 
-    # ASYNC LOGGING: Save to MongoDB
-    await db.log_prediction(customer.model_dump(), result)
+    asyncio.create_task(db.log_prediction(customer.model_dump(), result))
     return result
 
 @router.post("/batch-predict", summary="Batch subscription predictions")
@@ -96,5 +96,9 @@ async def research(payload: dict, request: Request):
     else:
         answer = f"RAG Engine is not initialized. (Response for: {query})"
     
-    await db.log_research(query, answer)
+    asyncio.create_task(db.log_research(query, answer))
     return {"query": query, "answer": answer}
+
+@router.get("/analytics", summary="Usage analytics from MongoDB")
+async def analytics():
+    return await db.get_analytics()

@@ -257,6 +257,7 @@ with tab1:
             st.subheader("📈 Macro-Economics", anchor=False)
             emp_var_rate = st.number_input("Emp. Var. Rate", value=-1.8)
             cons_price_idx = st.number_input("Cons. Price Index", value=92.893)
+            cons_conf_idx = st.number_input("Cons. Confidence Index", value=-46.2)
             euribor3m = st.number_input("Euribor 3-Month", value=1.299)
             nr_employed = st.number_input("Nr. Employed", value=5099.1)
 
@@ -269,7 +270,7 @@ with tab1:
             "contact": contact, "month": month, "day_of_week": "mon",
             "campaign": 1, "pdays": 999, "previous": 0, "poutcome": "nonexistent",
             "emp.var.rate": emp_var_rate, "cons.price.idx": cons_price_idx,
-            "cons.conf.idx": -46.2, "euribor3m": euribor3m, "nr.employed": nr_employed,
+            "cons.conf.idx": cons_conf_idx, "euribor3m": euribor3m, "nr.employed": nr_employed,
         }
 
         # Skeleton loader while request is pending
