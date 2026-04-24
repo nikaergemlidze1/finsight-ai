@@ -1,14 +1,26 @@
-# 🏦 FinSight AI — Bank Marketing Predictor
+# 🏦 FinSight AI — Bank Marketing Intelligence Suite
 
-> Production-grade ML pipeline predicting term deposit subscriptions from bank telemarketing campaign data.
+> Production-grade ML pipeline + RAG chatbot predicting term deposit subscriptions from bank telemarketing campaign data — deployed live on Hugging Face Spaces and Streamlit Cloud.
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
 ![LightGBM](https://img.shields.io/badge/LightGBM-4.5-brightgreen)
 ![scikit--learn](https://img.shields.io/badge/scikit--learn-1.5-F7931E?logo=scikitlearn&logoColor=white)
 ![MLflow](https://img.shields.io/badge/MLflow-2.14-0194E2?logo=mlflow&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)
 ![pytest](https://img.shields.io/badge/pytest-27%20tests-success?logo=pytest&logoColor=white)
+
+---
+
+## 🌐 Live Demo
+
+| Service | URL |
+|---|---|
+| **Streamlit Dashboard** | https://finsight-ai-k8qemrdroxhexpnqumnmrw.streamlit.app |
+| **FastAPI Backend (HF Spaces)** | https://nikollass-finsight-ai-backend.hf.space/docs |
+
+> HF Spaces free tier — first request may take ~20s if the Space is waking up.
 
 ---
 
@@ -37,9 +49,13 @@ The project applies rigorous ML engineering practices at every step:
 9. **Explainability** — SHAP values computed in the evaluation notebook to show per-feature contribution to predictions.
 
 ### Deliverables
-- **REST API** (FastAPI): `/predict`, `/batch-predict`, `/model-info`, `/health` endpoints with Pydantic validation.
-- **Interactive Dashboard** (Streamlit): Lead Scorer form with human-readable labels + RAG-powered Strategy Copilot chatbot.
-- **RAG Knowledge Base** (LlamaIndex + OpenAI): Indexed financial documents covering campaign strategy, GDPR/MiFID II compliance, best practices, and dataset insights. Returns context-grounded answers with source attribution.
+- **REST API** (FastAPI): `/predict`, `/batch-predict`, `/model-info`, `/analytics` endpoints with Pydantic validation, fire-and-forget MongoDB logging.
+- **Interactive Dashboard** (Streamlit, 3 tabs):
+  - **Tab 1 — Lead Scorer**: Form with human-readable labels and probability tier classification (High / Medium / Low).
+  - **Tab 2 — Strategy Copilot**: RAG-powered chatbot with suggested questions, copy-to-clipboard, timestamps, and clear-chat.
+  - **Tab 3 — Analytics**: Live KPI cards, lead tier donut chart, probability trend chart, and recent strategy questions — all pulled from MongoDB Atlas in real time.
+- **RAG Knowledge Base** (LlamaIndex + OpenAI): Indexed financial documents covering campaign strategy, GDPR/MiFID II compliance, best practices, and dataset insights.
+- **MongoDB Atlas Logging**: Every prediction and research query logged with structured input/output and human-readable `logged_at` timestamp.
 - **Docker Compose Orchestration**: One-command deployment of API + Streamlit + MLflow as separate containers.
 - **Testing & CI/CD**: 27 pytest tests covering data pipeline, models, and API. GitHub Actions runs artifact-free tests on every push.
 
@@ -93,17 +109,28 @@ All models trained on the UCI Bank Marketing dataset (41,188 rows, 11% positive 
 │                           models/best_model_metadata.json           │
 └─────────────────────────────────────────────────────────────────────┘
                                    │
-                    ┌──────────────┴──────────────┐
-                    ▼                             ▼
-┌─────────────────────────────┐   ┌───────────────────────────────┐
-│  FastAPI  :8000             │   │  Streamlit  :8501             │
-│  POST /predict              │◄──│  Tab 1: Lead Scorer           │
-│  POST /batch-predict        │   │  Tab 2: Strategy Copilot      │
-│  GET  /model-info           │   │  (LlamaIndex RAG over         │
-│                             │   │   financial documents)        │
-│  preprocessor.pkl           │   └───────────────────────────────┘
-│  best_model.pkl             │
-└─────────────────────────────┘
+                                   ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  PRODUCTION DEPLOYMENT                                               │
+│                                                                      │
+│  ┌────────────────────────────┐       ┌──────────────────────────┐  │
+│  │  FastAPI  (HF Spaces)      │◄──────│  Streamlit  (Cloud)      │  │
+│  │  POST /predict             │       │  Tab 1: Lead Scorer      │  │
+│  │  POST /batch-predict       │       │  Tab 2: Strategy Copilot │  │
+│  │  POST /research (RAG)      │       │  Tab 3: Analytics        │  │
+│  │  GET  /analytics           │       └──────────────────────────┘  │
+│  │  GET  /model-info          │                                      │
+│  │  GET  /  (health)          │       ┌──────────────────────────┐  │
+│  │                            │──────►│  MongoDB Atlas           │  │
+│  │  LightGBM model            │       │  prediction_logs         │  │
+│  │  LlamaIndex RAG engine     │       │  research_logs           │  │
+│  └────────────────────────────┘       └──────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+
+  LOCAL / DOCKER-COMPOSE (development)
+  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+  │ FastAPI:8000 │  │Streamlit:8501│  │ MLflow:5000  │
+  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 Full technical design: [docs/architecture.md](docs/architecture.md)
@@ -126,6 +153,10 @@ Full technical design: [docs/architecture.md](docs/architecture.md)
 
 - **`OrdinalEncoder` for `education`** — Education has a natural progression (`illiterate → university.degree`). OHE would discard this semantic order; ordinal encoding preserves it for meaningful model splits.
 
+- **Fire-and-forget MongoDB logging** — `asyncio.create_task()` is used for all DB writes so MongoDB latency never blocks API response time. Logging failures are caught and printed — they never propagate to the client.
+
+- **Two-branch deployment** — `main` branch serves GitHub CI and Streamlit Cloud (`app.py`). `deploy-branch` is force-pushed to the `hf` remote for the HF Spaces Docker backend. Keeps CI clean and HF config separate.
+
 ---
 
 ## 📁 Project Structure
@@ -136,11 +167,12 @@ FinSight_AI/
 ├── requirements.txt
 ├── Dockerfile                    # Multi-stage: builder + slim runtime
 ├── docker-compose.yml            # api + streamlit + mlflow
+├── app.py                        # Streamlit Cloud entry point (calls HF backend)
 ├── config/
 │   └── config.yaml               # Single source of truth for all parameters
 ├── data/
 │   ├── raw/                      # bank-additional-full.csv (gitignored)
-│   └── processed/                # Parquet splits + preprocessor (gitignored)
+│   └── processed/                # Parquet splits (gitignored)
 ├── notebooks/
 │   ├── 01_statistical_analysis.ipynb
 │   ├── 02_eda_plotly.ipynb
@@ -151,22 +183,22 @@ FinSight_AI/
 │   ├── statistical_analysis.py   # Hypothesis tests, VIF, logit summary
 │   ├── train.py                  # Multi-model training + MLflow tracking
 │   ├── evaluate.py               # Metrics, ROC/PR/confusion plots
-│   ├── predict.py                # CLI inference without running the server
+│   ├── predict.py                # Standalone inference (no server needed)
 │   └── rag/
 │       ├── indexer.py            # LlamaIndex document indexing
 │       └── query_engine.py       # RAG query interface
 ├── api/
 │   ├── main.py                   # FastAPI app factory + lifespan loader
 │   ├── routes.py                 # All endpoint definitions
-│   └── schemas.py                # Pydantic input/output models
+│   ├── schemas.py                # Pydantic input/output models
+│   └── database.py               # Motor async MongoDB client + logging helpers
 ├── app/
-│   ├── __init__.py               # Package initialization
 │   ├── labels.py                 # UI display mappings for Streamlit
-│   └── streamlit_app.py          # Multi-tab interactive dashboard
+│   └── streamlit_app.py          # Standalone local demo (loads model directly)
 ├── docs/
 │   ├── architecture.md           # System design + decision rationale
-│   └── financial_reports/        # PDFs/TXTs for RAG component
-├── models/                       # Trained artifacts (gitignored)
+│   └── financial_reports/        # PDFs/TXTs indexed by RAG
+├── models/                       # Trained artifacts (git LFS)
 ├── reports/figures/              # Generated plots (gitignored)
 └── tests/
     ├── test_data_processing.py   # 8 tests (no artifacts needed)
@@ -181,33 +213,33 @@ FinSight_AI/
 ### 1. Clone and set up environment
 
 ```bash
-git clone https://github.com/nikaergemlidze/FinSight_AI.git
-cd FinSight_AI
+git clone https://github.com/nikaergemlidze1/finsight-ai.git
+cd finsight-ai
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 1b. Set up API keys (for RAG chatbot)
+### 2. Configure API keys
 
-The Strategy Copilot RAG chatbot uses OpenAI for answer generation. Create a `.env` file from the template:
+The Strategy Copilot RAG chatbot uses OpenAI. Create `.env` from the template:
 
 ```bash
 cp .env.example .env
 ```
 
-Then open `.env` and add your OpenAI API key:
+Open `.env` and fill in:
 
 ```
 OPENAI_API_KEY=sk-proj-your-actual-key-here
+MONGO_URL=mongodb+srv://...   # optional — prediction/research logging
 ```
 
-Get a key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys) if you don't have one.
-
-> **Note:** Without this, Tab 1 (Lead Scorer) will work normally, but Tab 2 (Strategy Copilot) will show an authentication error.
+> Without `OPENAI_API_KEY`, Tab 1 (Lead Scorer) works normally. Tab 2 (Strategy Copilot) shows an auth error.
+> Without `MONGO_URL`, all API endpoints work — MongoDB logging silently no-ops.
 
 ---
 
-### 2. Download the dataset
+### 3. Download the dataset
 
 Download `bank-additional-full.csv` from the [UCI Bank Marketing Dataset](https://archive.ics.uci.edu/ml/datasets/Bank+Marketing) and place it at:
 
@@ -215,64 +247,53 @@ Download `bank-additional-full.csv` from the [UCI Bank Marketing Dataset](https:
 data/raw/bank-additional-full.csv
 ```
 
-### 3. Run the training pipeline
+### 4. Run the training pipeline
 
 ```bash
-# Step 1 — Feature engineering, splits, SMOTE (saves to data/processed/ and models/)
+# Feature engineering, splits, SMOTE
 python -m src.data_processing
 
-# Step 2 — Train 4 models, tune thresholds, log to MLflow, save best model
+# Train 4 models, tune thresholds, log to MLflow, save best
 python -m src.train
 
-# Step 3 (optional) — Evaluate and generate plots to reports/figures/
+# (optional) Evaluate and generate plots
 python -m src.evaluate
 ```
 
-### 4. Launch the demo
+### 5. Launch the app
 
-There are two ways to run FinSight AI. Choose the one that fits your goal:
-
----
-
-#### ⚡ Option A — Simple demo (one command, no Docker required)
-
-Streamlit loads the trained model directly from `models/` — no API server needed.
+**Option A — Standalone demo (no Docker, no API server)**
 
 ```bash
 streamlit run app/streamlit_app.py
 ```
 
-Open **http://localhost:8501** to use the Lead Scorer and Strategy Copilot.
+Opens **http://localhost:8501**. Model loaded directly from `models/`.
 
 ---
 
-#### 🐳 Option B — Production-like deployment (Docker Compose)
-
-Runs FastAPI, Streamlit, and MLflow as separate containers on a shared network.
+**Option B — Production-like (Docker Compose)**
 
 ```bash
 docker compose up --build
 ```
 
-| Service | URL | Notes |
-|---|---|---|
-| Streamlit dashboard | http://localhost:8501 | Full UI — waits for API healthcheck |
-| FastAPI REST API | http://localhost:8000 | Swagger UI at `/docs` |
-| MLflow tracking | http://localhost:5000 | Experiment history |
-
-All three services come up automatically. Streamlit loads predictions locally from `models/`; the FastAPI service is available separately for programmatic access.
+| Service | URL |
+|---|---|
+| Streamlit dashboard | http://localhost:8501 |
+| FastAPI REST API | http://localhost:8000/docs |
+| MLflow tracking | http://localhost:5000 |
 
 ---
 
-### 5. Optional extras
+### 6. Optional extras
 
 ```bash
 # MLflow UI locally (without Docker)
 mlflow ui --port 5001
-# -> Then open http://localhost:5001
 
 # CLI prediction (no server needed)
-python -m src.predict --json '...'
+python -m src.predict --json '{"age": 35, ...}'
 ```
 
 ---
@@ -284,11 +305,11 @@ pytest tests/ -v
 ```
 
 **27 tests** across 3 files:
-- `test_data_processing.py` — 8 tests, all run without trained artifacts
-- `test_models.py` — 8 tests (4 run always; 4 require trained artifacts)
-- `test_api.py` — 11 tests (require trained artifacts)
+- `test_data_processing.py` — 8 tests, always run (no artifacts needed)
+- `test_models.py` — 8 tests (4 always run; 4 require trained artifacts — auto-skip in CI)
+- `test_api.py` — 11 tests (require trained artifacts — auto-skip in CI)
 
-CI runs 10 artifact-free tests on every push. All 27 pass after the full pipeline has been run.
+CI runs the 10 artifact-free tests on every push to `main`. LFS pointer detection prevents false positives on CI runners without real model binaries.
 
 ---
 
@@ -307,10 +328,13 @@ CI runs 10 artifact-free tests on every push. All 27 pass after the full pipelin
 | API | FastAPI + Uvicorn | 0.111.1 / 0.30.3 |
 | Data Validation | Pydantic v2 | 2.8.2 |
 | Dashboard | Streamlit | 1.36.0 |
-| RAG | LlamaIndex | 0.11.0 |
+| RAG | LlamaIndex + OpenAI | 0.11.0 |
+| Database | MongoDB Atlas + Motor | async |
 | Containerisation | Docker + Compose | multi-stage |
-| CI | GitHub Actions + ruff | — |
-| Testing | pytest + httpx | 8.3.2 |
+| CI | GitHub Actions | — |
+| Testing | pytest + httpx | 8.3.2 / 0.27.0 |
+| Backend Hosting | Hugging Face Spaces | Docker SDK |
+| Frontend Hosting | Streamlit Cloud | — |
 
 ---
 
@@ -339,7 +363,7 @@ Full feature dictionary: [data/README.md](data/README.md)
 
 ## 📬 Contact
 
-**Nika Ergemlidze** — Data Scientist/Analyst/Data Engineer & AI/ML Engineer
+**Nika Ergemlidze** — Data Scientist / ML Engineer
 - 🐙 [github.com/nikaergemlidze1](https://github.com/nikaergemlidze1)
 - 💼 [linkedin.com/in/nika-ergemlidze](https://linkedin.com/in/nika-ergemlidze)
 
