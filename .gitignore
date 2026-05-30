@@ -89,3 +89,4 @@ finsight_dbt/dbt_packages/
 finsight_dbt/logs/
 logs/
 finsight_dbt/.user.yml
+dvc-env/
