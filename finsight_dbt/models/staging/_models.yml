@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_bank_marketing
+    description: "Cleaned and standardized bank marketing campaign contacts."
+    columns:
+      - name: subscribed
+        description: "Target: 1 if the client subscribed to a term deposit, else 0."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: age
+        tests:
+          - not_null

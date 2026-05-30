@@ -78,3 +78,13 @@ desktop.ini
 coverage.xml
 htmlcov/
 reports/screenshots/
+
+# Virtual environments
+dbt-env/
+rm-env/
+
+# dbt artifacts
+finsight_dbt/target/
+finsight_dbt/dbt_packages/
+finsight_dbt/logs/
+logs/

@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: finsight_staging
+    database: finsight-data-engineering
+    schema: finsight_staging
+    tables:
+      - name: stg_bank_marketing
+
+  - name: finsight_dwh
+    database: finsight-data-engineering
+    schema: finsight_dwh
+    tables:
+      - name: dim_customer
+      - name: dim_economic
+      - name: dim_campaign
+      - name: fact_campaign_contact

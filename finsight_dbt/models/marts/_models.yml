@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: mart_conversion_by_job
+    description: "Campaign conversion rate aggregated by client job segment."
+    columns:
+      - name: job
+        tests:
+          - not_null
+          - unique
+      - name: conversion_pct
+        tests:
+          - not_null
