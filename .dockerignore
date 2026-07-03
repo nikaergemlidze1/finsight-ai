@@ -4,9 +4,10 @@ mlruns/
 mlartifacts/
 
 # ── Dev / Notebooks ───────────────────────────────────────────────────────────
+# NOTE: docs/ must stay in the build context — the Dockerfile COPYies it
+# (docs/financial_reports are the RAG knowledge-base sources).
 notebooks/
 reports/
-docs/
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 tests/
@@ -39,4 +40,6 @@ secrets/
 Thumbs.db
 
 # ── Docs ─────────────────────────────────────────────────────────────────────
-*.md
+# Root README only — a bare "*.md" would also strip docs/financial_reports/
+# (the RAG sources) and break the Dockerfile's COPY docs/ step.
+README.md
