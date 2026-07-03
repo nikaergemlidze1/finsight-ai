@@ -6,10 +6,10 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
 ![LightGBM](https://img.shields.io/badge/LightGBM-4.5-brightgreen)
 ![scikit--learn](https://img.shields.io/badge/scikit--learn-1.5-F7931E?logo=scikitlearn&logoColor=white)
-![MLflow](https://img.shields.io/badge/MLflow-2.14-0194E2?logo=mlflow&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-2.19-0194E2?logo=mlflow&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)
-![pytest](https://img.shields.io/badge/pytest-27%20tests-success?logo=pytest&logoColor=white)
+![pytest](https://img.shields.io/badge/pytest-46%20tests-success?logo=pytest&logoColor=white)
 
 ---
 
@@ -49,15 +49,17 @@ The project applies rigorous ML engineering practices at every step:
 9. **Explainability** — SHAP values computed in the evaluation notebook to show per-feature contribution to predictions.
 
 ### Deliverables
-- **REST API** (FastAPI): `/predict`, `/batch-predict`, `/model-info`, `/analytics` endpoints with Pydantic validation, fire-and-forget MongoDB logging.
+- **REST API** (FastAPI): `/predict`, `/batch-predict`, `/research`, `/analytics`, `/drift`, `/ready`, `/model-info` — strict Pydantic validation (trained-vocabulary enums + numeric bounds), per-IP rate limiting, optional API-key auth, post-response MongoDB logging via `BackgroundTasks`.
+- **Explainable predictions**: every `/predict` response includes `top_drivers` — the top-3 SHAP feature contributions behind the score (TreeExplainer, warmed up in the background at startup).
 - **Interactive Dashboard** (Streamlit, 3 tabs):
-  - **Tab 1 — Lead Scorer**: Form with human-readable labels and probability tier classification (High / Medium / Low).
-  - **Tab 2 — Strategy Copilot**: RAG-powered chatbot with suggested questions, copy-to-clipboard, timestamps, and clear-chat.
-  - **Tab 3 — Analytics**: Live KPI cards, lead tier donut chart, probability trend chart, and recent strategy questions — all pulled from MongoDB Atlas in real time.
-- **RAG Knowledge Base** (LlamaIndex + OpenAI): Indexed financial documents covering campaign strategy, GDPR/MiFID II compliance, best practices, and dataset insights.
-- **MongoDB Atlas Logging**: Every prediction and research query logged with structured input/output and human-readable `logged_at` timestamp.
+  - **Tab 1 — Lead Scorer**: Full 19-feature form with human-readable labels, tier classification (High / Medium / Low), SHAP "why this score" panel, and CSV batch upload (score up to 500 leads, download results).
+  - **Tab 2 — Strategy Copilot**: RAG-powered chatbot with source citations, suggested questions, copy-to-clipboard, timestamps, and clear-chat.
+  - **Tab 3 — Analytics**: Live KPI cards, lead tier donut chart, probability trend chart, and a feature-drift monitor — privacy-preserving aggregates from MongoDB Atlas.
+- **Drift Monitoring**: `/drift` compares recent prediction inputs against the training distribution using the training scaler's statistics (|mean z-score| per feature) — no raw training data needed at serving time.
+- **RAG Knowledge Base** (LlamaIndex + OpenAI): Indexed financial documents covering campaign strategy, GDPR/MiFID II compliance, best practices, and dataset insights. Answers cite their source documents.
+- **MongoDB Atlas Logging**: Every prediction and research query logged with structured input/output and human-readable `logged_at` timestamp. Logging is a silent no-op when `MONGO_URL` is unset.
 - **Docker Compose Orchestration**: One-command deployment of API + Streamlit + MLflow as separate containers.
-- **Testing & CI/CD**: 27 pytest tests covering data pipeline, models, and API. GitHub Actions runs artifact-free tests on every push.
+- **Testing & CI/CD**: 46 pytest tests covering data pipeline, models, API, rate limiter, and auth. GitHub Actions runs lint (ruff), artifact-free tests, and a pip-audit dependency scan on every push; Dependabot keeps dependencies current.
 
 ### Business Value
 - **Cost savings**: Prioritizing high-probability leads reduces call center expenses (each call costs ~€3 in agent time).
@@ -115,21 +117,22 @@ All models trained on the UCI Bank Marketing dataset (41,188 rows, 11% positive 
 │                                                                      │
 │  ┌────────────────────────────┐       ┌──────────────────────────┐  │
 │  │  FastAPI  (HF Spaces)      │◄──────│  Streamlit  (Cloud)      │  │
-│  │  POST /predict             │       │  Tab 1: Lead Scorer      │  │
-│  │  POST /batch-predict       │       │  Tab 2: Strategy Copilot │  │
-│  │  POST /research (RAG)      │       │  Tab 3: Analytics        │  │
-│  │  GET  /analytics           │       └──────────────────────────┘  │
-│  │  GET  /model-info          │                                      │
-│  │  GET  /  (health)          │       ┌──────────────────────────┐  │
+│  │  POST /predict (+SHAP)     │       │  Tab 1: Lead Scorer      │  │
+│  │  POST /batch-predict ≤500  │       │         + CSV batch      │  │
+│  │  POST /research (RAG+cite) │       │  Tab 2: Strategy Copilot │  │
+│  │  GET  /analytics  /drift   │       │  Tab 3: Analytics+Drift  │  │
+│  │  GET  /model-info          │       └──────────────────────────┘  │
+│  │  GET  /  /ready  (health)  │                                      │
+│  │  rate-limited · validated  │       ┌──────────────────────────┐  │
 │  │                            │──────►│  MongoDB Atlas           │  │
-│  │  LightGBM model            │       │  prediction_logs         │  │
+│  │  LightGBM + SHAP explainer │       │  prediction_logs         │  │
 │  │  LlamaIndex RAG engine     │       │  research_logs           │  │
 │  └────────────────────────────┘       └──────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
 
   LOCAL / DOCKER-COMPOSE (development)
   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ FastAPI:8000 │  │Streamlit:8501│  │ MLflow:5000  │
+  │ FastAPI:8000 │  │Streamlit:8501│  │ MLflow:5001  │
   └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
@@ -153,7 +156,15 @@ Full technical design: [docs/architecture.md](docs/architecture.md)
 
 - **`OrdinalEncoder` for `education`** — Education has a natural progression (`illiterate → university.degree`). OHE would discard this semantic order; ordinal encoding preserves it for meaningful model splits.
 
-- **Fire-and-forget MongoDB logging** — `asyncio.create_task()` is used for all DB writes so MongoDB latency never blocks API response time. Logging failures are caught and printed — they never propagate to the client.
+- **Post-response MongoDB logging** — DB writes run via FastAPI `BackgroundTasks` *after* the response is sent, so MongoDB latency never blocks API response time (and tasks are held by the framework — no garbage-collection risk, unlike bare `asyncio.create_task`). Logging failures are logged and swallowed — they never propagate to the client.
+
+- **Strict input validation** — categorical fields are `Literal`-typed to the exact vocabularies the model was trained on. An unseen value (or a month like January that doesn't exist in the training data) returns 422 instead of being silently one-hot-encoded to all-zeros and producing a confident-looking garbage prediction.
+
+- **Event-loop hygiene** — the RAG query (a multi-second OpenAI call) runs in a worker thread via `asyncio.to_thread`, so one slow research question can never stall `/predict` for other users on the single-worker deployment.
+
+- **Abuse protection by default** — per-IP sliding-window rate limits on all cost-bearing endpoints, a 500-row batch cap, a 2 000-char query cap, and optional `X-API-Key` auth (constant-time compare) that activates by simply setting the `API_KEY` env var.
+
+- **Artifact-derived drift monitoring** — `/drift` standardises recent inputs with the training scaler's saved mean/std, so |mean z-score| per feature directly measures shift from the training distribution without shipping any training data.
 
 - **Two-branch deployment** — `main` branch serves GitHub CI and Streamlit Cloud (`app.py`). `deploy-branch` is force-pushed to the `hf` remote for the HF Spaces Docker backend. Keeps CI clean and HF config separate.
 
@@ -188,10 +199,13 @@ FinSight_AI/
 │       ├── indexer.py            # LlamaIndex document indexing
 │       └── query_engine.py       # RAG query interface
 ├── api/
-│   ├── main.py                   # FastAPI app factory + lifespan loader
-│   ├── routes.py                 # All endpoint definitions
-│   ├── schemas.py                # Pydantic input/output models
-│   └── database.py               # Motor async MongoDB client + logging helpers
+│   ├── main.py                   # FastAPI app + lifespan loader + request-ID logging
+│   ├── routes.py                 # All endpoint definitions (incl. /drift, /ready)
+│   ├── schemas.py                # Pydantic models (trained-vocabulary validation)
+│   ├── database.py               # Motor async MongoDB client + logging helpers
+│   ├── rate_limit.py             # In-memory per-IP sliding-window rate limiter
+│   ├── security.py               # Optional X-API-Key auth dependency
+│   └── tiers.py                  # Lead-tier thresholds (single source of truth)
 ├── app/
 │   ├── labels.py                 # UI display mappings for Streamlit
 │   └── streamlit_app.py          # Standalone local demo (loads model directly)
@@ -234,8 +248,9 @@ OPENAI_API_KEY=sk-proj-your-actual-key-here
 MONGO_URL=mongodb+srv://...   # optional — prediction/research logging
 ```
 
-> Without `OPENAI_API_KEY`, Tab 1 (Lead Scorer) works normally. Tab 2 (Strategy Copilot) shows an auth error.
+> Without `OPENAI_API_KEY`, Tab 1 (Lead Scorer) works normally. Tab 2 (Strategy Copilot) reports the engine as disabled (503).
 > Without `MONGO_URL`, all API endpoints work — MongoDB logging silently no-ops.
+> Optional hardening: set `API_KEY` to require an `X-API-Key` header on `/research` (mirror the value in Streamlit secrets), and tune `RATE_LIMIT_*_PER_MIN` env vars — see `.env.example`.
 
 ---
 
@@ -282,15 +297,17 @@ docker compose up --build
 |---|---|
 | Streamlit dashboard | http://localhost:8501 |
 | FastAPI REST API | http://localhost:8000/docs |
-| MLflow tracking | http://localhost:5000 |
+| MLflow tracking | http://localhost:5001 |
+
+> MLflow is mapped to host port **5001** because macOS reserves 5000 for AirPlay Receiver.
 
 ---
 
 ### 6. Optional extras
 
 ```bash
-# MLflow UI locally (without Docker)
-mlflow ui --port 5001
+# MLflow UI locally (without Docker) — 5000 is taken by macOS AirPlay
+mlflow ui --port 5002
 
 # CLI prediction (no server needed)
 python -m src.predict --json '{"age": 35, ...}'
@@ -304,12 +321,13 @@ python -m src.predict --json '{"age": 35, ...}'
 pytest tests/ -v
 ```
 
-**27 tests** across 3 files:
-- `test_data_processing.py` — 8 tests, always run (no artifacts needed)
-- `test_models.py` — 8 tests (4 always run; 4 require trained artifacts — auto-skip in CI)
-- `test_api.py` — 11 tests (require trained artifacts — auto-skip in CI)
+**46 tests** across 4 files:
+- `test_data_processing.py` — 8 tests (2 need the raw CSV — auto-skip/excluded in CI)
+- `test_models.py` — 5 tests (2 always run; 3 require trained artifacts — auto-skip in CI)
+- `test_api.py` — 20 tests (require trained artifacts — auto-skip in CI); covers validation, batch caps, tiers, readiness, and RAG error paths
+- `test_api_units.py` — 13 tests, always run: rate limiter, lead-tier classification, API-key auth
 
-CI runs the 10 artifact-free tests on every push to `main`. LFS pointer detection prevents false positives on CI runners without real model binaries.
+CI runs the artifact-free tests on every push to `main`, plus ruff lint and an informational `pip-audit` dependency scan. LFS pointer detection prevents false positives on CI runners without real model binaries.
 
 ---
 
@@ -322,12 +340,12 @@ CI runs the 10 artifact-free tests on every push to `main`. LFS pointer detectio
 | Gradient Boosting | XGBoost / LightGBM | 2.1.1 / 4.5.0 |
 | Imbalance Handling | imbalanced-learn (SMOTE) | 0.12.3 |
 | Model Interpretation | SHAP | 0.46.0 |
-| Experiment Tracking | MLflow | 2.14.3 |
+| Experiment Tracking | MLflow | 2.19.0 |
 | Statistical Analysis | SciPy / statsmodels | 1.13.1 / 0.14.2 |
 | Visualisation | Plotly / Matplotlib | 5.22.0 / 3.9.1 |
 | API | FastAPI + Uvicorn | 0.111.1 / 0.30.3 |
 | Data Validation | Pydantic v2 | 2.8.2 |
-| Dashboard | Streamlit | 1.36.0 |
+| Dashboard | Streamlit | 1.40.2 |
 | RAG | LlamaIndex + OpenAI | 0.11.0 |
 | Database | MongoDB Atlas + Motor | async |
 | Containerisation | Docker + Compose | multi-stage |

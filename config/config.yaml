@@ -120,23 +120,14 @@ models:
     grid_stop: 0.9
     grid_step: 0.01
 
-# ── Hyperparameter Tuning ──────────────────────────────────────────────────────
-tuning:
-  method: "optuna"          # options: optuna | grid | random
-  n_trials: 50
-  cv_folds: 5
-  scoring: "roc_auc"
-  n_jobs: -1
-  timeout_seconds: 3600
-
 # ── Evaluation ─────────────────────────────────────────────────────────────────
 evaluation:
-  primary_metric: "roc_auc"
+  primary_metric: "average_precision"   # PR-AUC — model selection criterion (imbalanced data)
   additional_metrics:
+    - roc_auc
     - precision
     - recall
     - f1
-    - average_precision    # PR-AUC, better for imbalanced data
 
 # ── MLflow ─────────────────────────────────────────────────────────────────────
 mlflow:

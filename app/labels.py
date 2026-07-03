@@ -50,11 +50,14 @@ CONTACT_LABELS = {
     "telephone":  "Landline",
 }
 
+# NOTE: the UCI dataset contains no January/February contacts, so the model
+# was never trained on those categories — offering them would produce
+# meaningless all-zero encodings. They are intentionally absent.
 MONTH_LABELS = {
-    "jan": "January",  "feb": "February", "mar": "March",
-    "apr": "April",    "may": "May",       "jun": "June",
-    "jul": "July",     "aug": "August",    "sep": "September",
-    "oct": "October",  "nov": "November",  "dec": "December",
+    "mar": "March",    "apr": "April",    "may": "May",
+    "jun": "June",     "jul": "July",     "aug": "August",
+    "sep": "September","oct": "October",  "nov": "November",
+    "dec": "December",
 }
 
 DAY_LABELS = {

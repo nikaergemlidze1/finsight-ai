@@ -165,3 +165,70 @@ def test_batch_predict_empty_list(client):
     """POST /batch-predict with an empty list returns 400 Bad Request."""
     resp = client.post("/batch-predict", json=[])
     assert resp.status_code == 400
+
+
+def test_batch_predict_too_large_rejected(client):
+    """POST /batch-predict beyond MAX_BATCH_SIZE returns 413 Payload Too Large."""
+    from api.routes import MAX_BATCH_SIZE
+    payload = [SAMPLE_CUSTOMER] * (MAX_BATCH_SIZE + 1)
+    resp = client.post("/batch-predict", json=payload)
+    assert resp.status_code == 413
+
+
+# ── Input validation ─────────────────────────────────────────────────────────
+
+def test_predict_rejects_unknown_job(client):
+    """Unseen categorical values are rejected (would encode to all-zeros)."""
+    resp = client.post("/predict", json={**SAMPLE_CUSTOMER, "job": "astronaut"})
+    assert resp.status_code == 422
+
+
+def test_predict_rejects_out_of_range_age(client):
+    resp = client.post("/predict", json={**SAMPLE_CUSTOMER, "age": 150})
+    assert resp.status_code == 422
+
+
+def test_predict_rejects_untrained_month(client):
+    """January is absent from the training data — must be rejected, not zero-encoded."""
+    resp = client.post("/predict", json={**SAMPLE_CUSTOMER, "month": "jan"})
+    assert resp.status_code == 422
+
+
+def test_predict_includes_lead_tier(client):
+    resp = client.post("/predict", json=SAMPLE_CUSTOMER)
+    assert resp.status_code == 200
+    assert resp.json()["lead_tier"] in ("high", "medium", "low")
+
+
+# ── /ready ────────────────────────────────────────────────────────────────────
+
+def test_ready_endpoint_reports_components(client):
+    resp = client.get("/ready")
+    assert resp.status_code == 200
+    body = resp.json()
+    for key in ("model_loaded", "explainer_ready", "rag_status",
+                "db_configured", "db_connected"):
+        assert key in body
+    assert body["model_loaded"] is True
+
+
+# ── /research ─────────────────────────────────────────────────────────────────
+
+def test_research_requires_query(client):
+    """Empty body fails schema validation."""
+    resp = client.post("/research", json={})
+    assert resp.status_code == 422
+
+
+def test_research_query_length_bounded(client):
+    resp = client.post("/research", json={"query": "x" * 2001})
+    assert resp.status_code == 422
+
+
+def test_research_unavailable_or_answers(client):
+    """RAG loads in a background thread — 503 while loading/disabled, 200 when live."""
+    resp = client.post("/research", json={"query": "What drives conversions?"})
+    assert resp.status_code in (200, 503)
+    if resp.status_code == 200:
+        body = resp.json()
+        assert "answer" in body and "sources" in body

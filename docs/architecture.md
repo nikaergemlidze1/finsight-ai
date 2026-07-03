@@ -23,7 +23,7 @@ flowchart TD
     subgraph Online["Online Serving"]
         FIG["docs/financial_reports/\nPDF / TXT documents"]
         RAG["src/rag/\nLlamaIndex indexer\n+ query engine"]
-        API["api/ (FastAPI)\nGET  /\nPOST /predict\nPOST /batch-predict\nGET  /model-info"]
+        API["api/ (FastAPI)\nGET  /  /ready  /model-info\nPOST /predict  /batch-predict\nPOST /research\nGET  /analytics  /drift"]
         ST["app/streamlit_app.py\nTab 1: Lead Scorer\nTab 2: Strategy Copilot"]
         USER["End User"]
     end
@@ -103,12 +103,20 @@ Education has a natural progression: `illiterate < basic.4y < basic.6y < basic.9
 
 | Method | Path | Description | Response |
 |---|---|---|---|
-| `GET` | `/` | Health check + model info | `{status, model_loaded, model_name, val_pr_auc, tuned_threshold, trained_at}` |
-| `POST` | `/predict` | Single-customer prediction | `{probability_of_subscription, prediction_class, recommendation, threshold_used}` |
-| `POST` | `/batch-predict` | Batch predictions (array input) | `[{...}, {...}]` — same schema per item |
+| `GET` | `/` | Health check + model info | `{status, model_loaded, model_name, val_pr_auc, tuned_threshold, trained_at, db_connected}` |
+| `GET` | `/ready` | Per-component readiness (RAG/SHAP load in background) | `{model_loaded, explainer_ready, rag_status, db_configured, db_connected}` |
+| `POST` | `/predict` | Single-customer prediction | `{probability_of_subscription, prediction_class, lead_tier, recommendation, threshold_used, top_drivers}` |
+| `POST` | `/batch-predict` | Batch predictions (array input, max 500) | `[{...}, {...}]` — same schema per item (no `top_drivers`) |
+| `POST` | `/research` | RAG strategy question | `{query, answer, sources}` |
+| `GET` | `/analytics` | Aggregate usage stats (privacy-preserving) | KPIs, tier distribution, recent probabilities |
+| `GET` | `/drift` | Feature drift vs. training distribution | Standardised mean-shift per numeric feature |
 | `GET` | `/model-info` | Full metadata JSON | Contents of `best_model_metadata.json` |
 
-**Input schema** (`POST /predict`): 19 fields — 7 demographic, 7 campaign-history, and 5 macro-economic indicators. Macro fields use dot notation as aliases (`emp.var.rate`, `cons.price.idx`, `cons.conf.idx`, `nr.employed`) to match raw dataset column names.
+**Input schema** (`POST /predict`): 19 fields — 7 demographic, 7 campaign-history, and 5 macro-economic indicators. Macro fields use dot notation as aliases (`emp.var.rate`, `cons.price.idx`, `cons.conf.idx`, `nr.employed`) to match raw dataset column names. Categorical fields are validated against the exact vocabularies the model was trained on (unseen values → 422); numeric fields carry sanity bounds.
+
+**Protection**: per-IP sliding-window rate limits on all mutation/aggregation endpoints; optional `X-API-Key` auth for `/research` (enabled by setting the `API_KEY` env var); batch size capped at 500; RAG query length capped at 2000 chars.
+
+**Explainability**: `top_drivers` returns the top-3 SHAP feature contributions (TreeExplainer, initialised in the background at startup) so every score ships with its reasons.
 
 ---
 
@@ -123,7 +131,7 @@ Education has a natural progression: `illiterate < basic.4y < basic.6y < basic.9
          │       ↑                         ↑               │
          │  models/ (read-only bind mount)  │               │
          │       │                         │               │
-         │  finsight_mlflow              :5000              │
+         │  finsight_mlflow              :5001              │
          │                                                  │
          └──────────────────────────────────────────────────┘
                          finsight (bridge network)

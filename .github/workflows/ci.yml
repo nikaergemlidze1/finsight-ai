@@ -37,21 +37,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff          # linter — not in requirements.txt (dev-only)
+          pip install ruff pip-audit    # dev-only tools — not in requirements.txt
 
       # ── Lint ──────────────────────────────────────────────────────────────────
       # E9   – syntax errors / runtime errors (always fatal)
       # F63  – invalid assert / star-expr misuse
       # F7   – syntax errors caught by pyflakes
-      # F82  – undefined names
+      # F82  – undefined names (includes F821)
       # E711 – comparison to None/True/False
-      # W    – warnings (non-fatal, included for visibility)
       - name: Lint with ruff
         run: |
           ruff check . \
             --select E9,F63,F7,F82,E711 \
-            --ignore F821 \
             --output-format github
+
+      # ── Dependency vulnerability scan ─────────────────────────────────────────
+      # Informational for now (continue-on-error) — surfaces CVEs in pinned deps
+      # without blocking merges. Tighten once the baseline is clean.
+      - name: Audit dependencies with pip-audit
+        continue-on-error: true
+        run: pip-audit -r requirements.txt --strict
 
       # ── Test ─────────────────────────────────────────────────────────────────
       # Tests that need the raw CSV (test_load_raw_schema, test_pdays_recoded)
