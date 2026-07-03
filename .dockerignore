@@ -1,0 +1,45 @@
+# ── Data (large / sensitive) ──────────────────────────────────────────────────
+data/
+mlruns/
+mlartifacts/
+
+# ── Dev / Notebooks ───────────────────────────────────────────────────────────
+# NOTE: docs/ must stay in the build context — the Dockerfile COPYies it
+# (docs/financial_reports are the RAG knowledge-base sources).
+notebooks/
+reports/
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+tests/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Python artifacts ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Git / CI ──────────────────────────────────────────────────────────────────
+.git/
+.github/
+.gitignore
+
+# ── Secrets / Config overrides ────────────────────────────────────────────────
+.env
+.env.*
+secrets/
+
+# ── OS artifacts ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docs ─────────────────────────────────────────────────────────────────────
+# Root README only — a bare "*.md" would also strip docs/financial_reports/
+# (the RAG sources) and break the Dockerfile's COPY docs/ step.
+README.md

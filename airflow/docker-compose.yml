@@ -1,0 +1,17 @@
+services:
+  airflow:
+    build: .
+    container_name: finsight-airflow
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      # dbt reads ADC from here
+      GOOGLE_APPLICATION_CREDENTIALS: "/opt/adc.json"
+      GOOGLE_CLOUD_PROJECT: "finsight-data-engineering"
+      DBT_PROFILES_DIR: "/opt/dbt"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ../finsight_dbt:/opt/dbt
+      - ~/.config/gcloud/application_default_credentials.json:/opt/adc.json:ro
+    command: standalone

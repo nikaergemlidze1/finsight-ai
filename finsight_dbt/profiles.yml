@@ -1,0 +1,12 @@
+finsight_dbt:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: finsight-data-engineering
+      dataset: dbt_prod
+      location: europe-west1
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive

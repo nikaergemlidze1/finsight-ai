@@ -1,0 +1,10 @@
+[client]
+toolbarMode = "viewer"
+showErrorDetails = false
+
+[server]
+enableWebsocketCompression = false
+enableStaticServing = true
+
+[runner]
+fastReruns = true
